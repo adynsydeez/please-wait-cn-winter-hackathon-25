@@ -8,7 +8,7 @@ Uses only standard Python libraries
 import os
 import sys
 import time
-import random
+import platform
 import threading
 import select
 from enum import Enum
@@ -20,6 +20,9 @@ if os.name == 'nt':  # Windows
 else:  # Unix/Linux/Mac
     import tty
     import termios
+
+def clear_screen():
+        os.system("cls" if platform.system() == "Windows" else "clear")
 
 class DebugConsole:
     def __init__(self):
@@ -184,6 +187,7 @@ class TronGame:
         self.input_handler = InputHandler()
         
         self.init_display()
+        self.render_offset = 0
         
     def init_display(self):
         """Initialize display settings"""
@@ -193,10 +197,10 @@ class TronGame:
         # Hide cursor
         print('\033[?25l', end='')
         sys.stdout.flush()
-        
+    
     def clear_screen(self):
-        """Clear the terminal screen"""
-        os.system('cls' if os.name == 'nt' else 'clear')
+        """Move cursor to top-left without clearing the screen buffer."""
+        print("\033[H", end='') 
         
     def draw_border(self, char='█', color=Colors.CYAN):
         """Draw a border around the game area"""
@@ -227,7 +231,6 @@ class TronGame:
 ║                                                          ║
 ║  {Colors.ORANGE}CONTROLS:{Colors.CYAN}                                               ║
 ║  {Colors.WHITE}WASD{Colors.CYAN}   - Navigate Light Cycle                           ║
-║  {Colors.WHITE}ESC{Colors.CYAN}    - Debug Console                                  ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 
@@ -240,7 +243,8 @@ class TronGame:
     def draw_game(self):
         """Draw the game grid and UI"""
         self.clear_screen()
-        
+        print("\033[H", end='')  # Move to top
+        print("\n" * self.render_offset, end='')
         # Header
         print(f"{Colors.CYAN}{Colors.BOLD}TRON.EXE - Combat Grid Active{Colors.RESET}")
         print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}")
@@ -273,7 +277,7 @@ class TronGame:
         print(self.draw_border())
         
         # Controls reminder
-        print(f"\n{Colors.DIM}Controls: WASD=Move, Q=Quit{Colors.RESET}")
+        print(f"\n{Colors.DIM}Controls: WASD=Move{Colors.RESET}")
         
         sys.stdout.flush()
 
@@ -288,12 +292,19 @@ class TronGame:
         if char in ['\r', '\n']:  # Enter
             if self.state == GameState.MENU:
                 self.start_game()
+            elif self.state == GameState.GAME_OVER:
+                self.start_game()   #restart immediately 
                 
         elif char.lower() == 'q':
             if self.state == GameState.MENU:
                 self.running = False
-            elif self.state == GameState.PLAYING:
-                self.state = GameState.MENU
+            elif self.state == GameState.GAME_OVER:
+                if char.lower() == 'q':
+                    clear_screen()
+                    self.state = GameState.MENU #return to menu when quit after game over
+                elif char == '\n':
+                    clear_screen()
+                    self.start_game #restart game when enter is pressed after game over
                 
         # Game controls
         elif self.state == GameState.PLAYING:
@@ -309,7 +320,9 @@ class TronGame:
                             
     def start_game(self):
         """Start a new game"""
+        clear_screen()
         self.state = GameState.PLAYING
+        self.render_offset = 5
         self.reset_game()
         
     def reset_game(self):
@@ -322,6 +335,7 @@ class TronGame:
         self.ai_pos = [self.height//2, 3*self.width//4]
         self.ai_dir = Direction.LEFT
         self.ai_trail.clear()
+        self.render_offset = 5
         
     def move_player(self):
         """Move player light cycle"""
@@ -419,6 +433,7 @@ class TronGame:
         
     def game_over(self, winner):
         """Handle game over"""
+        clear_screen()
         self.state = GameState.GAME_OVER
         self.score[winner.lower()] += 1
         
@@ -452,11 +467,6 @@ class TronGame:
         print(f"\n{Colors.CYAN}Final Score: Player {self.score['player']} - {self.score['ai']} AI{Colors.RESET}")
         print(f"{Colors.WHITE}Press [ENTER] for new game or [Q] to quit{Colors.RESET}")
         sys.stdout.flush()
-        
-        # Wait for input
-        while self.state == GameState.GAME_OVER and self.running:
-            self.handle_input()
-            time.sleep(0.1)
             
     def run(self):
         """Main game loop"""
