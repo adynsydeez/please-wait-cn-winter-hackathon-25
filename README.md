@@ -13,9 +13,20 @@ A simple Python application that combines a tiny language model with ASCII art f
 
 ### 1. Clone or download this repository
 
-### 2. Install Python dependencies
+### 2. Set up Python environment and install dependencies
 
 ```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+# On Windows:
+venv\Scripts\activate
+
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
