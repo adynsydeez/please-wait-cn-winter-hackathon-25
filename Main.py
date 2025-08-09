@@ -1,4 +1,4 @@
-import os, time, shutil, random
+import os, time, shutil, random, threading, sys, msvcrt
 from colorama import init, Fore, Back, Style
 
 def load_ascii_faces(directory):
@@ -147,8 +147,44 @@ def load_AI(face_frames):
     for _ in range(top_padding):
         print()
 
-    
     speak("HELLO, HUMAN. I AM ONLINE.", cols, "idle")
+
+# ANSI escape codes
+SAVE_CURSOR = '\033[s'
+RESTORE_CURSOR = '\033[u'
+CURSOR_UP = '\033[A'
+CLEAR_LINE = '\033[K'
+
+response = ""
+progress = 0
+lock = threading.Lock()
+commands = []  # to store entered commands
+
+def update_progress():
+    global progress
+    bar_length = 20  # length of the bar
+    while progress < 100:
+        time.sleep(0.1)
+        with lock:
+            progress += 4
+            if progress > 100:
+                progress = 100
+            # Save current cursor position (input line)
+            sys.stdout.write(SAVE_CURSOR)
+            # Move up to progress bar line
+            sys.stdout.write(CURSOR_UP)
+            # Clear the line and print new progress bar
+            filled_length = int(bar_length * progress // 100)
+            bar = '#' * filled_length + '-' * (bar_length - filled_length)
+            sys.stdout.write(f'\rProgress: [{bar}] {progress}%')
+            # Restore cursor to input line
+            sys.stdout.write(RESTORE_CURSOR)
+            sys.stdout.flush()
+
+def infer():
+    time.sleep(2)
+    global response
+    response = "Hello"
 
 def home(face_frames, mood):
     cols, rows = shutil.get_terminal_size()
@@ -165,11 +201,61 @@ def home(face_frames, mood):
     speak("WHAT WOULD YOU LIKE TO DO?", cols, mood)
     # User input prompt at bottom
     print("\n" * (rows - top_padding - len(face) - 5))  # Push input to bottom
+    input_commmand = input(">")
+    # Start the progress thread
+    progress_thread = threading.Thread(target=update_progress)
+    progress_thread.daemon = True
+    progress_thread.start()
 
+    # Start the inference thread
+    inference_thread = threading.Thread(target=infer)
+    inference_thread.daemon = True
+    inference_thread.start()
 
+    # Initial setup: print progress bar and prompt
+    with lock:
+        sys.stdout.write(f'Progress: [--------------------] 0%\n> ')
+        sys.stdout.flush()
 
-boot_sequence()
-load_AI(face_frames)
+    input_buffer = ''
+
+    while progress_thread.is_alive():
+        if msvcrt.kbhit():
+            char = msvcrt.getch()
+            with lock:
+                if char == b'\r':  # Enter
+                    commands.append(input_buffer)
+                    sys.stdout.write('\r' + CLEAR_LINE + '> ')
+                    sys.stdout.flush()
+                    input_buffer = ''
+                elif char == b'\x08':  # Backspace
+                    if input_buffer:
+                        input_buffer = input_buffer[:-1]
+                        sys.stdout.write('\b \b')
+                        sys.stdout.flush()
+                else:
+                    try:
+                        char_str = char.decode('utf-8')
+                        input_buffer += char_str
+                        sys.stdout.write(char_str)
+                        sys.stdout.flush()
+                    except UnicodeDecodeError:
+                        pass
+        else:
+            time.sleep(0.01)
+
+    # Wait for thread to finish
+    progress_thread.join()
+    inference_thread.join()
+
+    # After completion, print entered commands
+    print('\nProgress complete!')
+    if commands:
+        print('Entered commands:')
+        for cmd in commands:
+            print('- ' + cmd)
+    print("response:",response)
+
+# boot_sequence()
+# load_AI(face_frames)
 home(face_frames, "idle")
-
-
