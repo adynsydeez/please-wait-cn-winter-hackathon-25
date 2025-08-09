@@ -1,5 +1,6 @@
 # ML model
 pytorch_model.bin
+model.safetensors
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
