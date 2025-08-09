@@ -20,11 +20,6 @@ RESET = Style.RESET_ALL
 
 print(GREEN)
 
-import os
-import time
-from LLM_model.dumb_tinyLLM import tinyLLM_infer
-
-
 def clear_console():
     """Clears the console screen based on the operating system."""
     if os.name == 'nt':  # For Windows
@@ -42,20 +37,42 @@ def center_text(text, width):
     """Centers a string based on terminal width"""
     return text.center(width)
 
-def animate(animation : str, duration: float, frameDelay: float) -> None:
-    for i in range(duration * round(60.0 * frameDelay)):
+def animate(animation : str, loops: float, frameDelay: float) -> None:
+    for i in range(loops):
         for frame in open(f"animations/{animation}.txt", "r").readlines():
             frame = frame.replace(".txt", "")
+            frame = frame.replace("\n", "")
             frame = face_frames[frame]
             clear_console()
             print(frame, end='', flush=True)
             time.sleep(frameDelay)
 
-# testSpeak = "Hello, this is a test of the face animation system. It should display a simple animation of a face opening its mouth."
-# Define your prompt
-prompt = "Rose are red."
-generated_text = prompt
-print(prompt, end="")
+def speak(text: str, width: int, mood: str = "idle") -> None:
+    cols, rows = shutil.get_terminal_size()
+    # Load animation sequence from file
+    anim_file = f"animations/{mood}-Speak.txt" if mood != "idle" else "animations/idle-Speak.txt"
+    try:
+        with open(anim_file, "r", encoding="utf-8") as f:
+            anim_frames = [line.strip().replace(".txt", "") for line in f if line.strip()]
+    except FileNotFoundError:
+        anim_frames = ["face-idle-1"]
+    text_x = (cols - len(text)) // 2
+    # Use the first frame to determine face height for centering
+    face_lines = face_frames.get(anim_frames[0], "").splitlines()
+    top_padding = (rows // 2) - (len(face_lines) // 2) - 3
+    for i, char in enumerate(text):
+        clear_console()
+        for _ in range(top_padding):
+            print()
+        # Use animation frame for this character
+        frame_key = anim_frames[i % len(anim_frames)]
+        face = face_frames.get(frame_key, "")
+        for line in face.splitlines():
+            print(center_text(line, cols))
+        print()
+        print(" " * text_x + text[:i+1], end="", flush=True)
+        time.sleep(0.09)
+    print()
 
 def boot_sequence():
     clear_console()
@@ -89,16 +106,15 @@ def boot_sequence():
     print("CPU: ", end="")
     type_line("Say hello ")
     print(">", end="")
-    userInput = input()
+    user_input = input()
     
-    if userInput.lower() in ["hello", "hi", "hey"]:
+    if user_input.lower() in ["hello", "hi", "hey"]:
         print("CPU: ")
-        type_line(":)...", delay=0.1)
-        load_AI(face_frames)
+        type_line(":)...", delay=0.2)
     else:
         print("CPU: ", end="")
-        type_line(">:(...", delay=0.1)
-        load_AI(face_frames)
+        type_line(">:(...", delay=0.2)
+
 
 def load_AI(face_frames):
     """Simulates AI boot-up sequence with centered face"""
@@ -131,20 +147,29 @@ def load_AI(face_frames):
     for _ in range(top_padding):
         print()
 
-    for line in face:
-        print(center_text(line, cols))
+    
+    speak("HELLO, HUMAN. I AM ONLINE.", cols, "idle")
 
-    print("\n")  # Space under face for dialogue
-
-    # Dialogue area
-    dialogue = "HELLO, HUMAN. I AM ONLINE."
-    print(center_text(dialogue, cols)[0:round((cols-len(dialogue))/2) + 1], end="")
-    type_line(dialogue[1:], delay=0.05)
-
+def home(face_frames, mood):
+    cols, rows = shutil.get_terminal_size()
+    # Start with a loading effect
+    clear_console()
+    time.sleep(0.5)
+    # Removed second clear_console() for smoother transition
+    print(GREEN, end="")
+    # Draw AI face centered
+    face = face_frames["face-idle-1"].splitlines()
+    top_padding = (rows // 2) - (len(face) // 2) - 3
+    for _ in range(top_padding):
+        print()
+    speak("WHAT WOULD YOU LIKE TO DO?", cols, mood)
     # User input prompt at bottom
     print("\n" * (rows - top_padding - len(face) - 5))  # Push input to bottom
-    user_input = input(">" + " ")
-    return user_input
+
 
 
 boot_sequence()
+load_AI(face_frames)
+home(face_frames, "idle")
+
+
