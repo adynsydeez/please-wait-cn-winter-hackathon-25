@@ -171,7 +171,7 @@ def home(face_frames, mood):
     if choice == "3":
         clear_console()
         print(CYAN + center_text("═══════════════════════════════════════", cols))
-        print(CYAN + center_text("      AI MAINTENANCE COMMAND REFERENCE", cols))
+        print(CYAN + center_text("   AI MAINTENANCE COMMAND REFERENCE    ", cols))
         print(CYAN + center_text("═══════════════════════════════════════", cols))
         print()
         print(YELLOW + center_text("These commands help maintain cognitive stability.", cols))
