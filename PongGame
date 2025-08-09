@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+"""
+Terminal Pong with minimal flicker using curses.
+Replace or extend SimpleAI with your own AI by implementing next_move(paddle, ball, max_y).
+"""
+
+import curses
+import time
+import math
+import random
+from dataclasses import dataclass
+
+FRAME_RATE = 60.0  # desired frames per second
+PADDLE_HEIGHT = 5
+PADDLE_CHAR = '|'
+BALL_CHAR = 'O'
+SCORE_TO_WIN = 10
+
+@dataclass
+class Paddle:
+    x: int
+    y: int      # top y coordinate
+    h: int
+
+    def positions(self):
+        return [(self.y + i, self.x) for i in range(self.h)]
+
+    def move(self, dy, min_y, max_y):
+        new_y = max(min_y, min(self.y + dy, max_y - self.h + 1))
+        self.y = new_y
+
+@dataclass
+class Ball:
+    x: float
+    y: float
+    vx: float
+    vy: float
+
+    def position(self):
+        return (int(round(self.y)), int(round(self.x)))
+
+    def step(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+
+class AIBase:
+    """Interface: implement next_move(self, paddle, ball, max_y) -> -1, 0, or 1"""
+    def next_move(self, paddle: Paddle, ball: Ball, max_y: int):
+        raise NotImplementedError
+
+class SimpleAI(AIBase):
+    """A very simple tracking AI that moves paddle center toward ball y."""
+    def __init__(self):
+        self.move_cooldown = 0 #frames to wait before next move
+
+    def next_move(self, paddle: Paddle, ball: Ball, max_y: int):
+        paddle_center = paddle.y + paddle.h / 2.0
+        delta = ball.y - paddle_center
+        
+        if abs(delta) < 1.0: #Deadzone threshold if the ball is close enough
+            return 0
+        
+        self.move_cooldown = 2 # AI moves once every 3 frames
+        
+        #Move toward ball
+        return 1 if delta > 0 else -1
+
+class RandomAI(AIBase):
+    """Example alternative AI: random jitter."""
+    def next_move(self, paddle: Paddle, ball: Ball, max_y: int):
+        return random.choice([-1, 0, 1])
+
+class Game:
+    def __init__(self, stdscr, ai: AIBase):
+        self.stdscr = stdscr
+        self.ai = ai
+        curses.curs_set(0)
+        stdscr.nodelay(True)
+        stdscr.keypad(True)
+        self.max_y, self.max_x = stdscr.getmaxyx()
+        self._init_entities()
+        self.score_left = 0
+        self.score_right = 0
+        self.paused = False
+        self.keys_down = set()
+        
+        # Keep track of drawn cells to avoid full redraw (reduce flicker)
+        self.drawn = set()  # set of (y,x) currently drawn as paddle/ball
+        self.prev_ball_pos = None
+        self.prev_left_positions = []
+        self.prev_right_positions = []
+
+    def _init_entities(self):
+        self.max_y, self.max_x = self.stdscr.getmaxyx()
+        mid_x = self.max_x // 2
+        mid_y = self.max_y // 2
+        offset = 3
+        self.left = Paddle(x=offset, y=max(2, mid_y - PADDLE_HEIGHT // 2), h=PADDLE_HEIGHT)
+        self.right = Paddle(x=self.max_x - offset - 1, y=max(2, mid_y - PADDLE_HEIGHT // 2), h=PADDLE_HEIGHT)
+        angle = random.uniform(-0.5, 0.5)
+        speed = 30.0  # chars per second
+        dir = random.choice([-1, 1])
+        self.ball = Ball(x=mid_x + dir*2, y=mid_y, vx=dir*speed, vy=speed * angle)
+
+    def reset_ball(self, scorer_left=False):
+        mid_x = self.max_x // 2
+        mid_y = self.max_y // 2
+        dir = -1 if scorer_left else 1
+        angle = random.uniform(-0.4, 0.4)
+        speed = 40.0
+        self.ball = Ball(x=mid_x, y=mid_y, vx=dir*speed, vy=speed*angle)
+        self.prev_ball_pos = None
+
+    def draw_border_and_score(self):
+        # top/bottom border
+        for x in range(self.max_x):
+            self._safe_addch(0, x, '-')
+            self._safe_addch(self.max_y-1, x, '-')
+        # middle dashed line
+        for y in range(1, self.max_y-1):
+            if y % 2 == 0:
+                self._safe_addch(y, self.max_x//2, '|')
+
+        # scores
+        score_text = f"{self.score_left} : {self.score_right}"
+        self.stdscr.addstr(0, max(1, self.max_x//2 - len(score_text)//2), score_text)
+
+    def _safe_addch(self, y, x, ch):
+        if 0 <= y < self.max_y and 0 <= x < self.max_x:
+            try:
+                self.stdscr.addch(y, x, ch)
+            except curses.error:
+                pass
+
+    def erase_positions(self, positions):
+        for (y,x) in positions:
+            if 0 <= y < self.max_y and 0 <= x < self.max_x:
+                # if top/bottom border or center line, leave them (we redraw border each frame)
+                # clear only inside play area
+                if y > 0 and y < self.max_y-1:
+                    try:
+                        self.stdscr.addch(y, x, ' ')
+                    except curses.error:
+                        pass
+
+    def draw_paddle(self, paddle: Paddle):
+        for (y,x) in paddle.positions():
+            self._safe_addch(y, x, PADDLE_CHAR)
+
+    def draw_ball(self, ball: Ball):
+        y, x = ball.position()
+        self._safe_addch(y, x, BALL_CHAR)
+
+    def handle_input(self):
+        self.keys_down.clear()
+        quit_flag = False
+        while True:   
+            ch = self.stdscr.getch()
+            if ch == -1:
+                break
+            if ch in (ord('q'), ord('Q')):
+                quit_flag = True
+            elif ch in (ord('p'), ord('P')):
+                self.paused = not self.paused
+            elif ch in (ord('w'), ord('W')):
+                self.keys_down.add('w')
+            elif ch in (ord('s'), ord('S')):
+                self.keys_down.add('s')
+            elif ch == curses.KEY_UP:
+                self.keys_down.add('up')
+            elif ch == curses.KEY_DOWN:
+                self.keys_down.add('down')
+        return quit_flag
+
+    def step(self, dt):
+        if self.paused:
+            return
+
+        #Left paddle movement is user, based on keys_down
+        if 'w' in self.keys_down:
+            self.left.move(-1,1, self.max_y-2)
+        if 's' in self.keys_down:
+            self.left.move(1,1, self.max_y-2)
+        
+        # AI decision for right paddle
+        ai_move = self.ai.next_move(self.right, self.ball, self.max_y-2)
+        if ai_move:
+            self.right.move(ai_move, 1, self.max_y-2)
+
+        # update ball
+        self.ball.step(dt)
+
+        # wall bounce (top/bottom)
+        if self.ball.y < 1:
+            self.ball.y = 1
+            self.ball.vy *= -1
+        elif self.ball.y > self.max_y - 2:
+            self.ball.y = self.max_y - 2
+            self.ball.vy *= -1
+
+        # paddles collision
+        by, bx = self.ball.position()
+
+        # left paddle collision
+        if bx <= self.left.x + 0 and self.left.y <= by <= self.left.y + self.left.h - 1:
+            self.ball.x = self.left.x + 1
+            self.ball.vx = abs(self.ball.vx)  # go right
+            # add some vertical based on where on paddle it hit
+            offset = (by - (self.left.y + self.left.h/2)) / (self.left.h/2)
+            self.ball.vy += offset * 8.0
+
+        # right paddle collision
+        if bx >= self.right.x - 0 and self.right.y <= by <= self.right.y + self.right.h - 1:
+            self.ball.x = self.right.x - 1
+            self.ball.vx = -abs(self.ball.vx)
+            offset = (by - (self.right.y + self.right.h/2)) / (self.right.h/2)
+            self.ball.vy += offset * 8.0
+
+        # score check
+        if self.ball.x < 0:
+            self.score_right += 1
+            self.reset_ball(scorer_left=False)
+        elif self.ball.x > self.max_x - 1:
+            self.score_left += 1
+            self.reset_ball(scorer_left=True)
+
+    def render(self):
+        # erase previous moving objects, draw border & score (overwrites),
+        # then draw paddles and ball.
+        # Erase previous ball and paddles
+        if self.prev_ball_pos:
+            py, px = self.prev_ball_pos
+            self.erase_positions([(py, px)])
+        if self.prev_left_positions:
+            self.erase_positions(self.prev_left_positions)
+        if self.prev_right_positions:
+            self.erase_positions(self.prev_right_positions)
+
+        # redraw static elements (border & score)
+        self.draw_border_and_score()
+
+        # draw paddles & ball
+        self.draw_paddle(self.left)
+        self.draw_paddle(self.right)
+        self.draw_ball(self.ball)
+
+        # record positions for next erase
+        self.prev_ball_pos = self.ball.position()
+        self.prev_left_positions = self.left.positions()
+        self.prev_right_positions = self.right.positions()
+
+        # batch update to screen
+        try:
+            self.stdscr.noutrefresh()
+            curses.doupdate()
+        except curses.error:
+            pass
+
+    def run(self):
+        last = time.perf_counter()
+        quit_requested = False
+        frame_time = 1.0 / FRAME_RATE
+        while not quit_requested:
+            now = time.perf_counter()
+            dt = now - last
+            if dt < 0:
+                dt = 0
+            last = now
+
+            # handle possible resize
+            new_y, new_x = self.stdscr.getmaxyx()
+            if (new_y, new_x) != (self.max_y, self.max_x):
+                self.max_y, self.max_x = new_y, new_x
+                self._init_entities()
+                self.prev_ball_pos = None
+                self.prev_left_positions = []
+                self.prev_right_positions = []
+                self.stdscr.erase()
+
+            quit_requested = self.handle_input()
+            self.step(dt)
+            self.render()
+
+            # simple win check
+            if self.score_left >= SCORE_TO_WIN or self.score_right >= SCORE_TO_WIN:
+                winner = "Left" if self.score_left >= SCORE_TO_WIN else "Right"
+                self.show_message_center(f"{winner} player wins! Press any key.", 3)
+                self.stdscr.nodelay(False)
+                self.stdscr.getch()
+                break
+
+            # frame limiter: sleep remaining time
+            elapsed = time.perf_counter() - now
+            to_sleep = frame_time - elapsed
+            if to_sleep > 0:
+                time.sleep(to_sleep)
+
+    def show_message_center(self, text, linger_seconds=0):
+        y = self.max_y // 2
+        x = max(0, self.max_x // 2 - len(text)//2)
+        self.stdscr.addstr(y, x, text)
+        self.stdscr.noutrefresh()
+        curses.doupdate()
+        if linger_seconds > 0:
+            time.sleep(linger_seconds)
+
+def menu(stdscr):
+    curses.curs_set(0)
+    stdscr.nodelay(False)
+    stdscr.keypad(True)
+    max_y, max_x = stdscr.getmaxyx()
+
+    title = "Terminal Pong"
+    opts = ["Start (Left = W/S keys, Right = AI)", "Choose AI: Simple", "Quit"]
+    ai_choice = 0  # 0 = SimpleAI, 1 = RandomAI (example)
+    while True:
+        stdscr.erase()
+        stdscr.border()
+        stdscr.addstr(2, max_x//2 - len(title)//2, title, curses.A_BOLD)
+        for i, opt in enumerate(opts):
+            prefix = "-> " if i == 0 else "   "
+            stdscr.addstr(6 + i*2, max_x//2 - len(opt)//2, opt)
+
+        stdscr.addstr(max_y-2, 2, "Use Up/Down to choose, Enter to select.")
+        stdscr.addstr(max_y-3, 2, "Press A to toggle AI (Simple/Random).")
+        stdscr.refresh()
+
+        ch = stdscr.getch()
+        if ch in (ord('a'), ord('A')):
+            ai_choice = 1 - ai_choice
+            opts[1] = f"Choose AI: {'Random' if ai_choice else 'Simple'}"
+        elif ch in (curses.KEY_ENTER, ord('\n'), ord('\r')):
+            return ai_choice
+        elif ch in (ord('q'), ord('Q')):
+            return None
+
+def main(stdscr):
+    ai_choice = menu(stdscr)
+    if ai_choice is None:
+        return  # quit
+    
+    #clear menu from screen before start game
+    stdscr.clear()
+    stdscr.refresh()
+
+    if ai_choice == 0:
+        ai = SimpleAI()
+    else:
+        ai = RandomAI()
+
+    game = Game(stdscr, ai)
+    game.show_message_center("Press any key to start", 1)
+    
+    #Clear message before game starts
+    stdscr.clear()
+    stdscr.refresh()
+    stdscr.nodelay(True)
+    game.run()
+
+if __name__ == "__main__":
+    curses.wrapper(main)

@@ -20,6 +20,11 @@ RESET = Style.RESET_ALL
 
 print(GREEN)
 
+import os
+import time
+from LLM_model.dumb_tinyLLM import tinyLLM_infer
+
+
 def clear_console():
     """Clears the console screen based on the operating system."""
     if os.name == 'nt':  # For Windows
@@ -46,7 +51,11 @@ def animate(animation : str, duration: float, frameDelay: float) -> None:
             print(frame, end='', flush=True)
             time.sleep(frameDelay)
 
-testSpeak = "Hello, this is a test of the face animation system. It should display a simple animation of a face opening its mouth."
+# testSpeak = "Hello, this is a test of the face animation system. It should display a simple animation of a face opening its mouth."
+# Define your prompt
+prompt = "Rose are red."
+generated_text = prompt
+print(prompt, end="")
 
 def boot_sequence():
     clear_console()
