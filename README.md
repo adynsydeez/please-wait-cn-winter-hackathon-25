@@ -20,6 +20,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. Set up the model
+Download file model.safetensors from https://huggingface.co/arnir0/Tiny-LLM/tree/main
 
 Place your tiny language model files in the following directory structure:
 ```
@@ -28,7 +29,7 @@ LLM_model/
     ├── config.json
     ├── tokenizer.json
     ├── tokenizer_config.json
-    ├── vocab.txt 
+    └── vocab.txt 
 ```
 
 ## Usage
