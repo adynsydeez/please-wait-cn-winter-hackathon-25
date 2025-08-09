@@ -180,17 +180,8 @@ class TronGame:
         self.game_speed = 0.35
         self.score = {"player": 0, "ai": 0}
         
-        # Debug system
-        self.debug_console = DebugConsole()
-        self.ai_lag = 0
-        self.ai_errors = 0
-        self.ai_thinking = False
-        self.ai_slowdown = 1.0
-        self.memory_corruption = False
-        
         # Input system
         self.input_handler = InputHandler()
-
         
         self.init_display()
         
@@ -238,12 +229,6 @@ class TronGame:
 ║  {Colors.WHITE}WASD{Colors.CYAN}   - Navigate Light Cycle                           ║
 ║  {Colors.WHITE}ESC{Colors.CYAN}    - Debug Console                                  ║
 ║                                                          ║
-║  {Colors.RED}DEBUG COMMANDS (During Game):{Colors.CYAN}                           ║
-║  {Colors.WHITE}debug slowdown [1-10]{Colors.CYAN} - Reduce AI processing            ║
-║  {Colors.WHITE}debug corrupt{Colors.CYAN}         - Memory corruption               ║
-║  {Colors.WHITE}debug freeze{Colors.CYAN}          - Freeze AI calculations          ║
-║  {Colors.WHITE}debug reboot{Colors.CYAN}          - Force AI restart                ║
-║  {Colors.WHITE}debug virus{Colors.CYAN}           - Random AI behavior              ║
 ╚══════════════════════════════════════════════════════════╝
 
 {Colors.DIM}Status: Waiting for user input... (Press keys as shown above){Colors.RESET}
@@ -254,8 +239,7 @@ class TronGame:
         
     def draw_game(self):
         """Draw the game grid and UI"""
-        # Only clear and redraw game area, not debug console
-        print('\033[1;1H', end='')  # Move to top-left
+        self.clear_screen()
         
         # Header
         print(f"{Colors.CYAN}{Colors.BOLD}TRON.EXE - Combat Grid Active{Colors.RESET}")
@@ -263,14 +247,7 @@ class TronGame:
         
         # Status bar
         status = f"Player: {Colors.CYAN}■{Colors.RESET} [{self.score['player']}]  |  "
-        status += f"AI: {Colors.ORANGE}■{Colors.RESET} [{self.score['ai']}]  |  "
-        if self.ai_thinking:
-            status += f"{Colors.RED}{Colors.BLINK}AI PROCESSING...{Colors.RESET}"
-        else:
-            status += f"{Colors.GREEN}READY{Colors.RESET}"
-            
-        if self.ai_slowdown > 1:
-            status += f"  |  {Colors.RED}DEBUG: AI SLOWED {self.ai_slowdown:.1f}x{Colors.RESET}"
+        status += f"AI: {Colors.ORANGE}■{Colors.RESET} [{self.score['ai']}]"
             
         print(status)
         print()
@@ -296,7 +273,7 @@ class TronGame:
         print(self.draw_border())
         
         # Controls reminder
-        print(f"\n{Colors.DIM}Controls: WASD=Move, ESC=Debug Console, Q=Quit{Colors.RESET}")
+        print(f"\n{Colors.DIM}Controls: WASD=Move, Q=Quit{Colors.RESET}")
         
         sys.stdout.flush()
 
@@ -305,44 +282,21 @@ class TronGame:
         """Handle keyboard input"""
         char = self.input_handler.get_input()
         if not char:
-            # Check if debug console needs updating even without input
-            if self.debug_console.active:
-                self.debug_console.draw()
             return
             
         # Handle special keys
-        if char == '\x1b':  # Escape
-            self.debug_console.toggle()
-            # Force full screen redraw when toggling debug console
-            if self.state == GameState.PLAYING:
-                if self.debug_console.active:
-                    self.clear_screen()
-                    self.draw_game()
-                else:
-                    self.clear_screen()
-                
-        elif char in ['\r', '\n']:  # Enter
-            if self.debug_console.active:
-                command = self.debug_console.input_buffer.strip()
-                self.debug_console.clear_input()
-                self.process_debug_command(command)
-                # Debug console will redraw automatically due to needs_redraw flag
-            elif self.state == GameState.MENU:
+        if char in ['\r', '\n']:  # Enter
+            if self.state == GameState.MENU:
                 self.start_game()
                 
         elif char.lower() == 'q':
             if self.state == GameState.MENU:
                 self.running = False
-            elif self.state == GameState.PLAYING and not self.debug_console.active:
+            elif self.state == GameState.PLAYING:
                 self.state = GameState.MENU
                 
-        # Debug console input
-        elif self.debug_console.active:
-            self.debug_console.update_input(char)
-            # Debug console will redraw automatically due to needs_redraw flag
-                
-        # Game controls (only when debug console is closed)
-        elif self.state == GameState.PLAYING and not self.debug_console.active:
+        # Game controls
+        elif self.state == GameState.PLAYING:
             char = char.lower()
             if char == 'w' and self.player_dir != Direction.DOWN:
                 self.player_dir = Direction.UP
@@ -352,72 +306,7 @@ class TronGame:
                 self.player_dir = Direction.LEFT
             elif char == 'd' and self.player_dir != Direction.LEFT:
                 self.player_dir = Direction.RIGHT
-        
-        # Update debug console if it's active and needs redrawing
-        if self.debug_console.active:
-            self.debug_console.draw()
-            
-    def process_debug_command(self, command):
-        """Process debug commands"""
-        if command.lower() == 'help':
-            self.debug_console.add_message("Available commands:")
-            self.debug_console.add_message("slowdown <1-10> - Reduce AI processing")
-            self.debug_console.add_message("corrupt - Memory corruption")
-            self.debug_console.add_message("freeze - Freeze AI calculations")
-            self.debug_console.add_message("reboot - Force AI restart")
-            self.debug_console.add_message("virus - Random AI behavior")
-            self.debug_console.add_message("clear - Clear console")
-            return
-            
-        if command.lower() == 'clear':
-            self.debug_console.messages.clear()
-            return
-            
-        parts = command.lower().split()
-        if not parts:
-            return
-            
-        # Allow commands without 'debug' prefix
-        if parts[0] == 'debug' and len(parts) > 1:
-            cmd = parts[1]
-            args = parts[2:]
-        else:
-            cmd = parts[0]
-            args = parts[1:]
-            
-        if cmd == 'slowdown':
-            if args:
-                try:
-                    factor = float(args[0])
-                    self.ai_slowdown = max(0.1, min(10.0, factor))
-                    self.debug_console.add_message(f"AI slowdown set to {self.ai_slowdown}x")
-                except ValueError:
-                    self.debug_console.add_message("Invalid slowdown factor")
-            else:
-                self.debug_console.add_message("Usage: slowdown <1-10>")
-                
-        elif cmd == 'corrupt':
-            self.memory_corruption = True
-            self.debug_console.add_message("Memory corruption injected")
-            
-        elif cmd == 'freeze':
-            self.ai_lag += 3
-            self.debug_console.add_message("AI processing frozen")
-            
-        elif cmd == 'virus':
-            self.memory_corruption = True
-            self.ai_lag += 2
-            self.debug_console.add_message("Virus uploaded - AI compromised")
-            
-        elif cmd == 'reboot':
-            self.ai_slowdown = 1.0
-            self.memory_corruption = False
-            self.ai_lag = 0
-            self.debug_console.add_message("AI system rebooted - all effects cleared")
-            
-        else:
-            self.debug_console.add_message(f"Unknown command: {cmd}. Type 'help' for commands.")
-                
+                            
     def start_game(self):
         """Start a new game"""
         self.state = GameState.PLAYING
@@ -455,33 +344,15 @@ class TronGame:
         self.player_pos = [new_row, new_col]
         
     def move_ai(self):
-        """Move AI light cycle with debug interference"""
-        self.ai_thinking = True
-        
-        # Apply debug effects
-        if self.ai_lag > 0:
-            time.sleep(0.8)
-            self.ai_lag -= 1
-            
-        if self.ai_slowdown > 1:
-            time.sleep(0.2 * self.ai_slowdown)
-            
+        """Move AI light cycle"""
         # Add current position to trail
         row, col = self.ai_pos
         if 0 <= row < self.height and 0 <= col < self.width:
             self.grid[row][col] = 'A'
             self.ai_trail.append([row, col])
             
-        # AI decision making (with corruption)
-        if self.memory_corruption and random.random() < 0.4:
-            # Random move due to corruption
-            directions = list(Direction)
-            self.ai_dir = random.choice(directions)
-            if random.random() < 0.5:  # Sometimes clear corruption
-                self.memory_corruption = False
-        else:
-            # Smart AI movement
-            self.ai_dir = self.get_ai_direction()
+        # Smart AI movement
+        self.ai_dir = self.get_ai_direction()
             
         # Calculate new position
         dr, dc = self.ai_dir.value
@@ -494,7 +365,6 @@ class TronGame:
             return
             
         self.ai_pos = [new_row, new_col]
-        self.ai_thinking = False
         
     def get_ai_direction(self):
         """Calculate best AI direction"""
@@ -603,10 +473,7 @@ class TronGame:
                     if self.state == GameState.PLAYING:  # Check if still playing
                         self.move_ai()
                     if self.state == GameState.PLAYING:  # Check again
-                        # Draw game area
                         self.draw_game()
-                        # Draw debug console if active (will only redraw if needed)
-                        self.debug_console.draw()
                         
                 elif self.state == GameState.GAME_OVER:
                     pass  # Handled in game_over method
