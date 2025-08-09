@@ -242,60 +242,61 @@ def home(face_frames, mood):
             print(center_text(f"- {cmd}", cols))
         print()
         input(center_text("Press Enter to return...", cols))
-    input_commmand = input(">")
-    # Start the progress thread
-    progress_thread = threading.Thread(target=update_progress)
-    progress_thread.daemon = True
-    progress_thread.start()
 
-    # Start the inference thread
-    inference_thread = threading.Thread(target=infer)
-    inference_thread.daemon = True
-    inference_thread.start()
+    if choice == "1":
+        # Start the progress thread
+        progress_thread = threading.Thread(target=update_progress)
+        progress_thread.daemon = True
+        progress_thread.start()
 
-    # Initial setup: print progress bar and prompt
-    with lock:
-        sys.stdout.write(f'Progress: [--------------------] 0%\n> ')
-        sys.stdout.flush()
+        # Start the inference thread
+        inference_thread = threading.Thread(target=infer)
+        inference_thread.daemon = True
+        inference_thread.start()
 
-    input_buffer = ''
+        # Initial setup: print progress bar and prompt
+        with lock:
+            sys.stdout.write(f'Progress: [--------------------] 0%\n> ')
+            sys.stdout.flush()
 
-    while progress_thread.is_alive():
-        if msvcrt.kbhit():
-            char = msvcrt.getch()
-            with lock:
-                if char == b'\r':  # Enter
-                    commands.append(input_buffer)
-                    sys.stdout.write('\r' + CLEAR_LINE + '> ')
-                    sys.stdout.flush()
-                    input_buffer = ''
-                elif char == b'\x08':  # Backspace
-                    if input_buffer:
-                        input_buffer = input_buffer[:-1]
-                        sys.stdout.write('\b \b')
+        input_buffer = ''
+
+        while progress_thread.is_alive():
+            if msvcrt.kbhit():
+                char = msvcrt.getch()
+                with lock:
+                    if char == b'\r':  # Enter
+                        commands.append(input_buffer)
+                        sys.stdout.write('\r' + CLEAR_LINE + '> ')
                         sys.stdout.flush()
-                else:
-                    try:
-                        char_str = char.decode('utf-8')
-                        input_buffer += char_str
-                        sys.stdout.write(char_str)
-                        sys.stdout.flush()
-                    except UnicodeDecodeError:
-                        pass
-        else:
-            time.sleep(0.01)
+                        input_buffer = ''
+                    elif char == b'\x08':  # Backspace
+                        if input_buffer:
+                            input_buffer = input_buffer[:-1]
+                            sys.stdout.write('\b \b')
+                            sys.stdout.flush()
+                    else:
+                        try:
+                            char_str = char.decode('utf-8')
+                            input_buffer += char_str
+                            sys.stdout.write(char_str)
+                            sys.stdout.flush()
+                        except UnicodeDecodeError:
+                            pass
+            else:
+                time.sleep(0.01)
 
-    # Wait for thread to finish
-    progress_thread.join()
-    inference_thread.join()
+        # Wait for thread to finish
+        progress_thread.join()
+        inference_thread.join()
 
-    # After completion, print entered commands
-    print('\nProgress complete!')
-    if commands:
-        print('Entered commands:')
-        for cmd in commands:
-            print('- ' + cmd)
-    print("response:",response)
+        # After completion, print entered commands
+        print('\nProgress complete!')
+        if commands:
+            print('Entered commands:')
+            for cmd in commands:
+                print('- ' + cmd)
+        print("response:",response)
 
 # boot_sequence()
 # load_AI(face_frames)
