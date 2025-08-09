@@ -60,4 +60,3 @@ You can modify the following parameters in `dumb_tinyLLM.py`:
 - PyTorch 2.8.0
 - Transformers 4.55.0
 - Compatible tiny language model files
-- ASCII art face files
