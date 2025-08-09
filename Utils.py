@@ -17,7 +17,7 @@ def clear_console():
     else:  # For macOS and Linux
         _ = os.system('clear')
 
-def type_line(text, delay=0.01):
+def type_line(text, delay=0.05):
     for char in text:
         print(char, end="", flush=True)
         time.sleep(delay)
