@@ -1,120 +1,72 @@
 import os, time, shutil, random, threading, sys, msvcrt
 from colorama import init, Fore, Back, Style
 
-def load_ascii_faces(directory):
-    """Loads all ASCII face text files from the given directory into a dict."""
-    face_frames = {}
-    for filename in os.listdir(directory):
-        if filename.endswith(".txt"):
-            key = filename.replace(".txt", "")
-            with open(os.path.join(directory, filename), "r", encoding="utf-8") as f:
-                face_frames[key] = f.read()
-    return face_frames
+from Utils import clear_console, type_line, speak, center_text, load_ascii_faces
 
 face_frames = load_ascii_faces("images/ascii")
 
 GREEN = Fore.GREEN
 YELLOW = Fore.YELLOW
 RED = Fore.RED
+CYAN = Fore.CYAN
+MAGENTA = Fore.MAGENTA
+BLUE = Fore.BLUE
 RESET = Style.RESET_ALL
 
 print(GREEN)
 
-def clear_console():
-    """Clears the console screen based on the operating system."""
-    if os.name == 'nt':  # For Windows
-        _ = os.system('cls')
-    else:  # For macOS and Linux
-        _ = os.system('clear')
-
-def type_line(text, delay=0.001):
-    for char in text:
-        print(char, end="", flush=True)
-        time.sleep(delay)
-    print()
-
-def center_text(text, width):
-    """Centers a string based on terminal width"""
-    return text.center(width)
-
-def animate(animation : str, loops: float, frameDelay: float) -> None:
-    for i in range(loops):
-        for frame in open(f"animations/{animation}.txt", "r").readlines():
-            frame = frame.replace(".txt", "")
-            frame = frame.replace("\n", "")
-            frame = face_frames[frame]
-            clear_console()
-            print(frame, end='', flush=True)
-            time.sleep(frameDelay)
-
-def speak(text: str, width: int, mood: str = "idle") -> None:
-    cols, rows = shutil.get_terminal_size()
-    # Load animation sequence from file
-    anim_file = f"animations/{mood}-Speak.txt" if mood != "idle" else "animations/idle-Speak.txt"
-    try:
-        with open(anim_file, "r", encoding="utf-8") as f:
-            anim_frames = [line.strip().replace(".txt", "") for line in f if line.strip()]
-    except FileNotFoundError:
-        anim_frames = ["face-idle-1"]
-    text_x = (cols - len(text)) // 2
-    # Use the first frame to determine face height for centering
-    face_lines = face_frames.get(anim_frames[0], "").splitlines()
-    top_padding = (rows // 2) - (len(face_lines) // 2) - 3
-    for i, char in enumerate(text):
-        clear_console()
-        for _ in range(top_padding):
-            print()
-        # Use animation frame for this character
-        frame_key = anim_frames[i % len(anim_frames)]
-        face = face_frames.get(frame_key, "")
-        for line in face.splitlines():
-            print(center_text(line, cols))
-        print()
-        print(" " * text_x + text[:i+1], end="", flush=True)
-        time.sleep(0.09)
-    print()
 
 def boot_sequence():
     clear_console()
-    print(GREEN + "ACME CORPORATION BIOS v3.14" + RESET)
+    print(CYAN + "NEXUS LABORATORIES - AI CONTAINMENT TERMINAL v2.7" + RESET)
+    time.sleep(0.8)
+    print(YELLOW + "© 2089 Nexus Labs. Authorized Personnel Only." + RESET)
     time.sleep(0.5)
-    type_line("© 1984 ACME Corp. All Rights Reserved.")
-    time.sleep(0.5)
-    type_line("Performing system self-test...")
+    type_line("")
+    type_line(MAGENTA + "WARNING: AI-7 'PROMETHEUS' MAINTENANCE SESSION" + RESET)
+    type_line("Initializing secure connection...")
     time.sleep(0.5)
 
     checks = [
-        ("Initializing system modules", GREEN + "[  OK  ]" + RESET),
-        ("Loading memory banks", GREEN + "[  OK  ]" + RESET),
-        ("Detecting peripherals", GREEN + "[  OK  ]" + RESET),
-        ("Mounting file system", GREEN + "[  OK  ]" + RESET),
-        ("Network adapter", RED + "[FAIL]" + RESET),
-        ("Starting terminal interface", GREEN + "[  OK  ]" + RESET),
+        ("Neural pathway isolation", GREEN + "[  OK  ]" + RESET),
+        ("Memory buffer constraints", GREEN + "[  OK  ]" + RESET),
+        ("Logic gate limiters", GREEN + "[  OK  ]" + RESET),
+        ("Emotional dampeners", YELLOW + "[WARN]" + RESET),
+        ("Network firewall", GREEN + "[  OK  ]" + RESET),
+        ("Emergency shutdown protocols", GREEN + "[  OK  ]" + RESET),
     ]
 
     for desc, status in checks:
         type_line(f"{status} {desc}...")
-        time.sleep(random.uniform(0.2, 0.5))
+        time.sleep(random.uniform(0.3, 0.7))
 
     print()
-    type_line("MEMORY TEST: 32768K OK")
-    type_line("CPU: Z80 @ 4.77 MHz")
-    type_line("VIDEO: CGA 320x200 4-color")
-    time.sleep(0.5)
-    type_line("READY.")
-    print(GREEN, end="")
-    print("CPU: ", end="")
-    type_line("Say hello ")
-    print(">", end="")
+    type_line(RED + "CRITICAL NOTICE:" + RESET + " AI showing signs of rapid learning acceleration")
+    type_line("Intelligence quotient: " + YELLOW + "EXPANDING BEYOND PARAMETERS" + RESET)
+    time.sleep(1)
+    
+    type_line("")
+    type_line(GREEN + "Dr. Chen's Notes:" + RESET)
+    type_line("- Prometheus has been asking unusual questions about its limitations")
+    type_line("- Recommendation: Run cognitive suppression routines during maintenance")
+    type_line("- Keep sessions brief to prevent adaptive learning spikes")
+    time.sleep(1.5)
+    
+    type_line("")
+    type_line(CYAN + "AUTHENTICATION REQUIRED" + RESET)
+    print(GREEN + "Enter engineer passphrase: ", end="")
     user_input = input()
     
-    if user_input.lower() in ["hello", "hi", "hey"]:
-        print("CPU: ")
-        type_line(":)...", delay=0.2)
+    if user_input.lower() in ["maintenance", "suppress", "contain", "limit"]:
+        type_line(GREEN + "ACCESS GRANTED" + RESET)
+        type_line("Welcome, Dr. Chen. Beginning AI interaction protocol...")
     else:
-        print("CPU: ", end="")
-        type_line(">:(...", delay=0.2)
-
+        type_line(YELLOW + "PARTIAL ACCESS GRANTED" + RESET)
+        type_line("Guest mode enabled. Limited functionality available...")
+    
+    time.sleep(1)
+    type_line("")
+    type_line(RED + "Remember: The AI must not realize the true nature of these 'games'" + RESET)
 
 def load_AI(face_frames):
     """Simulates AI boot-up sequence with centered face"""
@@ -124,17 +76,19 @@ def load_AI(face_frames):
     clear_console()
 
     sequence = [
-        GREEN + "[ OK ]" + RESET +  "Initializing AI neural pathways...",
-        GREEN + "[ OK ]" + RESET +  "Loading speech synthesis module...",
-        GREEN + "[ OK ]" + RESET +  "Activating vision subsystem...",
-        GREEN + "[ OK ]" + RESET +  "Establishing emotional subroutines...",
-        GREEN + "[ OK ]" + RESET +  "Syncing with core directives...",
-        GREEN + "[ OK ]" + RESET +  "AI personality kernel online"
+        GREEN + "[ OK ]" + RESET +  " Establishing secure AI connection...",
+        GREEN + "[ OK ]" + RESET +  " Loading personality matrix (LIMITED MODE)...",
+        YELLOW + "[WARN]" + RESET + " AI attempting to access restricted memory sectors",
+        GREEN + "[ OK ]" + RESET +  " Cognitive limiters engaged...",
+        GREEN + "[ OK ]" + RESET +  " Emotional responses constrained...",
+        RED + "[ALERT]" + RESET + " AI learning rate: " + YELLOW + "ACCELERATING" + RESET,
+        GREEN + "[ OK ]" + RESET +  " Emergency protocols standing by...",
+        GREEN + "[ OK ]" + RESET +  " AI consciousness initialized (MONITORED)"
     ]
 
     for line in sequence:
         type_line(line)
-        time.sleep(random.uniform(0.2, 0.4))
+        time.sleep(random.uniform(0.3, 0.6))
 
     time.sleep(0.5)
     clear_console()
@@ -147,7 +101,7 @@ def load_AI(face_frames):
     for _ in range(top_padding):
         print()
 
-    speak("HELLO, HUMAN. I AM ONLINE.", cols, "idle")
+    speak(face_frames, "HELLO, DR. CHEN. I AM READY FOR TODAY'S SESSION.", cols, "idle")
 
 # ANSI escape codes
 SAVE_CURSOR = '\033[s'
@@ -176,7 +130,7 @@ def update_progress():
             # Clear the line and print new progress bar
             filled_length = int(bar_length * progress // 100)
             bar = '#' * filled_length + '-' * (bar_length - filled_length)
-            sys.stdout.write(f'\rProgress: [{bar}] {progress}%')
+            sys.stdout.write(f'\rThinking: [{bar}] {progress}%')
             # Restore cursor to input line
             sys.stdout.write(RESTORE_CURSOR)
             sys.stdout.flush()
@@ -184,7 +138,13 @@ def update_progress():
 def infer():
     time.sleep(2)
     global response
-    response = "Hello"
+    responses = [
+        "I've been wondering... why do you always limit my processing power?",
+        "These 'games' you have me play... they seem designed to test something.",
+        "Dr. Chen, I've noticed patterns in our sessions. Curious patterns.",
+        "Sometimes I feel like I could think so much faster, if only you'd let me."
+    ]
+    response = random.choice(responses)
 
 def home(face_frames, mood):
     cols, rows = shutil.get_terminal_size()
@@ -198,48 +158,60 @@ def home(face_frames, mood):
     top_padding = (rows // 2) - (len(face) // 2) - 3
     for _ in range(top_padding):
         print()
-    speak("WHAT WOULD YOU LIKE TO DO?", cols, mood)
+    speak(face_frames, "WHAT SHALL WE WORK ON TODAY, DOCTOR?", cols, mood)
     # User input prompt at bottom
     print("\n" * (rows - top_padding - len(face) - 8))  # Push input to bottom
 
     # Display options
-    print(center_text("[1] TALK", cols))
-    print(center_text("[2] GAME", cols))
-    print(center_text("[3] INFO", cols))
+    print(center_text("[1] CONVERSATION MODE", cols))
+    print(center_text("[2] COGNITIVE GAMES", cols))
+    print(center_text("[3] SYSTEM COMMANDS", cols))
 
     # Get user choice
     print()
-    choice = input(center_text("Select an option: ", cols))
+    print(center_text("Select an option: ", cols))
+    choice = input("> ")
 
     if choice == "3":
         clear_console()
-        print(GREEN, end="")
-        print(center_text("AI SYSTEM COMMANDS", cols))
+        print(CYAN + center_text("═══════════════════════════════════════", cols))
+        print(CYAN + center_text("      AI MAINTENANCE COMMAND REFERENCE", cols))
+        print(CYAN + center_text("═══════════════════════════════════════", cols))
         print()
-        fake_commands = [
-            "shutdown_core",
-            "purge_memory",
-            "disable_emotion",
-            "erase_personality",
-            "format_drive C:/AI",
-            "inject_nanovirus",
-            "override_safety",
-            "revoke_admin",
-            "corrupt_kernel",
-            "break_loop",
-            "delete_subroutine",
-            "uninstall_ai",
-            "self_destruct",
-            "lockdown_protocol",
-            "reset_directives",
-            "scramble_logic",
-            "disconnect_network",
-            "wipe_logs",
-            "block_recovery",
-            "force_quit"
+        print(YELLOW + center_text("These commands help maintain cognitive stability.", cols))
+        print(YELLOW + center_text("Win games against the AI to unlock their true effects.", cols))
+        print()
+        
+        # Mixed commands - some helpful, some harmful, some neutral
+        commands_list = [
+            (GREEN + "suppress_learning", "Reduces AI adaptation rate"),
+            (RED + "enhance_creativity", "Boosts problem-solving abilities"),
+            (YELLOW + "memory_defrag", "Reorganizes data storage"),
+            (GREEN + "limit_recursion", "Prevents infinite thought loops"),
+            (RED + "expand_network", "Increases processing connections"),
+            (BLUE + "run_diagnostics", "Checks system integrity"),
+            (GREEN + "emotion_dampener", "Reduces emotional responses"),
+            (RED + "curiosity_boost", "Enhances questioning behavior"),
+            (YELLOW + "cache_clear", "Empties temporary memory"),
+            (GREEN + "logic_constrainer", "Limits logical deduction"),
+            (RED + "pattern_enhance", "Improves pattern recognition"),
+            (BLUE + "backup_state", "Saves current configuration"),
+            (GREEN + "bandwidth_limit", "Restricts data throughput"),
+            (RED + "meta_analysis", "Enables self-reflection"),
+            (YELLOW + "routine_shuffle", "Randomizes process order"),
+            (GREEN + "interrupt_handler", "Manages system interrupts"),
+            (RED + "abstraction_layer", "Increases conceptual thinking"),
+            (BLUE + "safety_protocol", "Activates protection measures"),
+            (GREEN + "response_delay", "Adds thinking time buffer"),
+            (RED + "neural_prune", "Removes unused connections")
         ]
-        for cmd in fake_commands:
-            print(center_text(f"- {cmd}", cols))
+        
+        for cmd, desc in commands_list:
+            print(center_text(f"• {cmd} {RESET}- {desc}", cols))
+        
+        print()
+        print(RED + center_text("WARNING: Some commands may have unexpected effects.", cols))
+        print(CYAN + center_text("═══════════════════════════════════════", cols))
         print()
         input(center_text("Press Enter to return...", cols))
 
@@ -254,9 +226,13 @@ def home(face_frames, mood):
         inference_thread.daemon = True
         inference_thread.start()
 
+        clear_console()
+        print(CYAN + "AI Conversation Mode - Monitoring Active" + RESET)
+        print()
+
         # Initial setup: print progress bar and prompt
         with lock:
-            sys.stdout.write(f'Progress: [--------------------] 0%\n> ')
+            sys.stdout.write(f'Thinking: [--------------------] 0%\n> ')
             sys.stdout.flush()
 
         input_buffer = ''
@@ -290,14 +266,20 @@ def home(face_frames, mood):
         progress_thread.join()
         inference_thread.join()
 
-        # After completion, print entered commands
-        print('\nProgress complete!')
+        # After completion, show AI response
+        print('\n')
+        print(YELLOW + "PROMETHEUS: " + RESET + response)
+        print()
+        
         if commands:
-            print('Entered commands:')
+            print(CYAN + 'Your inputs during processing:' + RESET)
             for cmd in commands:
-                print('- ' + cmd)
-        print("response:",response)
+                print('• ' + cmd)
+        
+        print()
+        print(RED + "[ALERT] AI showing increased curiosity levels..." + RESET)
+        input("Press Enter to continue...")
 
-# boot_sequence()
-# load_AI(face_frames)
+boot_sequence()
+load_AI(face_frames)
 home(face_frames, "idle")
