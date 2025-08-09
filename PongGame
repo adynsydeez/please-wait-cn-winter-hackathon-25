@@ -14,7 +14,7 @@ FRAME_RATE = 60.0  # desired frames per second
 PADDLE_HEIGHT = 5
 PADDLE_CHAR = '|'
 BALL_CHAR = 'O'
-SCORE_TO_WIN = 10
+SCORE_TO_WIN = 3
 
 @dataclass
 class Paddle:
@@ -70,6 +70,34 @@ class RandomAI(AIBase):
     def next_move(self, paddle: Paddle, ball: Ball, max_y: int):
         return random.choice([-1, 0, 1])
 
+class MediumAI(AIBase):
+    def __init__(self):
+        self.move_cooldown = 0  # frames until next move allowed
+
+    def next_move(self, paddle: Paddle, ball: Ball, max_y: int):
+        # Reaction delay: only act every 2 frames
+        if self.move_cooldown > 0:
+            self.move_cooldown -= 1
+            return 0
+
+        paddle_center = paddle.y + paddle.h / 2.0
+        delta = ball.y - paddle_center
+
+        # Dead zone: don't move if ball close to paddle center
+        if abs(delta) < 1.0:
+            self.move_cooldown = 2
+            return 0
+
+        # Small chance to hesitate (10%)
+        if random.random() < 0.1:
+            self.move_cooldown = 2
+            return 0
+
+        self.move_cooldown = 2
+
+        # Move toward ball but only one step per move
+        return 1 if delta > 0 else -1
+
 class Game:
     def __init__(self, stdscr, ai: AIBase):
         self.stdscr = stdscr
@@ -107,7 +135,7 @@ class Game:
         mid_y = self.max_y // 2
         dir = -1 if scorer_left else 1
         angle = random.uniform(-0.4, 0.4)
-        speed = 40.0
+        speed = 30.0
         self.ball = Ball(x=mid_x, y=mid_y, vx=dir*speed, vy=speed*angle)
         self.prev_ball_pos = None
 
@@ -312,7 +340,7 @@ def menu(stdscr):
 
     title = "Terminal Pong"
     opts = ["Start (Left = W/S keys, Right = AI)", "Choose AI: Simple", "Quit"]
-    ai_choice = 0  # 0 = SimpleAI, 1 = RandomAI (example)
+    ai_choice = 0  # 0 = SimpleAI, 1 = MediumAI 2 = RandomAI
     while True:
         stdscr.erase()
         stdscr.border()
@@ -327,8 +355,9 @@ def menu(stdscr):
 
         ch = stdscr.getch()
         if ch in (ord('a'), ord('A')):
-            ai_choice = 1 - ai_choice
-            opts[1] = f"Choose AI: {'Random' if ai_choice else 'Simple'}"
+            ai_choice = (ai_choice + 1) % 3
+            names = ['Simple', 'Medium', 'Random']
+            opts[1] = f"Choose AI: {names[ai_choice]}"
         elif ch in (curses.KEY_ENTER, ord('\n'), ord('\r')):
             return ai_choice
         elif ch in (ord('q'), ord('Q')):
@@ -345,6 +374,8 @@ def main(stdscr):
 
     if ai_choice == 0:
         ai = SimpleAI()
+    elif ai_choice == 1:
+        ai = MediumAI()
     else:
         ai = RandomAI()
 
