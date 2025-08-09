@@ -1,0 +1,9 @@
+face-idle-1.txt
+face-idle-nod-1.txt
+face-idle-nod-2.txt
+face-idle-nod-3.txt
+face-idle-nod-4.txt
+face-idle-nod-3.txt
+face-idle-nod-2.txt
+face-idle-nod-1.txt
+face-idle-1.txt

@@ -1,0 +1,13 @@
+face-idle-1.txt
+face-idle-shake-1.txt
+face-idle-shake-2.txt
+face-idle-shake-3.txt
+face-idle-shake-2.txt
+face-idle-shake-1.txt
+face-idle-1.txt
+face-idle-shake-4.txt
+face-idle-shake-5.txt
+face-idle-shake-6.txt
+face-idle-shake-5.txt
+face-idle-shake-4.txt
+face-idle-1.txt
