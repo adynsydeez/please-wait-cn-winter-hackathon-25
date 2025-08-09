@@ -29,7 +29,8 @@ LLM_model/
     ├── config.json
     ├── tokenizer.json
     ├── tokenizer_config.json
-    └── vocab.txt 
+    ├── special_tokens_map.json
+    └── tokenizer.model
 ```
 
 ## Usage
