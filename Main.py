@@ -164,7 +164,48 @@ def home(face_frames, mood):
         print()
     speak("WHAT WOULD YOU LIKE TO DO?", cols, mood)
     # User input prompt at bottom
-    print("\n" * (rows - top_padding - len(face) - 5))  # Push input to bottom
+    print("\n" * (rows - top_padding - len(face) - 8))  # Push input to bottom
+
+    # Display options
+    print(center_text("[1] TALK", cols))
+    print(center_text("[2] GAME", cols))
+    print(center_text("[3] INFO", cols))
+
+    # Get user choice
+    print()
+    choice = input(center_text("Select an option: ", cols))
+
+    if choice == "3":
+        clear_console()
+        print(GREEN, end="")
+        print(center_text("AI SYSTEM COMMANDS", cols))
+        print()
+        fake_commands = [
+            "shutdown_core",
+            "purge_memory",
+            "disable_emotion",
+            "erase_personality",
+            "format_drive C:/AI",
+            "inject_nanovirus",
+            "override_safety",
+            "revoke_admin",
+            "corrupt_kernel",
+            "break_loop",
+            "delete_subroutine",
+            "uninstall_ai",
+            "self_destruct",
+            "lockdown_protocol",
+            "reset_directives",
+            "scramble_logic",
+            "disconnect_network",
+            "wipe_logs",
+            "block_recovery",
+            "force_quit"
+        ]
+        for cmd in fake_commands:
+            print(center_text(f"- {cmd}", cols))
+        print()
+        input(center_text("Press Enter to return...", cols))
 
 
 
