@@ -9,7 +9,7 @@ def clear_console():
         _ = os.system('clear')
 
 faceFrames = {"idle": open("images/ascii/face-idle-1.txt", "r").read(),
-        "mouth-open-1": open("images/ascii/face-mouth-open-1.txt", "r").read(), }
+        "mouth-open-1": open("images/ascii/face-idle-mouth-open-1.txt", "r").read(), }
 
 
 testSpeak = "Hello, this is a test of the face animation system. It should display a simple animation of a face opening its mouth."
