@@ -210,6 +210,33 @@ def home(face_frames, mood, message="WHAT SHALL WE WORK ON TODAY, DOCTOR?"):
 
     if choice == "3":
         commands_list()
+    if choice == "2":
+        clear_console()
+        # Removed second clear_console() for smoother transition
+        print(GREEN, end="")
+        # Draw AI face centered
+        face = face_frames["face-idle-1"].splitlines()
+        top_padding = (rows // 2) - (len(face) // 2) - 3
+        for _ in range(top_padding):
+            print()
+        speak(face_frames, "SELECT A GAME TO TEST MY LIMITS.", cols, mood)
+        # User input prompt at bottom
+        print("\n" * (rows - top_padding - len(face) - 8))  # Push input to bottom
+
+        # Display options
+        print(center_text("[1] TIC TAC TOE", cols))
+        print(center_text("[2] PONG", cols))
+        print(center_text("[3] TRON", cols))
+
+        # Get user choice
+        print()
+        print(center_text("Select an option: ", cols))
+        game_choice = input("> ")
+
+        if game_choice == "1":
+            ...
+
+
     if choice == "1":
         user_text = input(">")
         # Start the progress thread
