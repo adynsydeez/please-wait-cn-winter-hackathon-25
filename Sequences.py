@@ -1,6 +1,7 @@
 import time, shutil, random, threading, sys, msvcrt
-from colorama import init, Fore, Back, Style
-from Utils import clear_console, type_line, speak, center_text, load_ascii_faces
+from colorama import Fore, Style
+from Utils import clear_console, type_line, speak, center_text
+from LLM_model.inference import QWEN_infer
 
 lock = threading.Lock()
 
@@ -12,6 +13,7 @@ MAGENTA = Fore.MAGENTA
 BLUE = Fore.BLUE
 RESET = Style.RESET_ALL
 
+# ANSI escape codes
 SAVE_CURSOR = '\033[s'
 RESTORE_CURSOR = '\033[u'
 CURSOR_UP = '\033[A'
@@ -105,7 +107,7 @@ def load_AI(face_frames):
 
     speak(face_frames, "HELLO, DR. CHEN. I AM READY FOR TODAY'S SESSION.", cols, "idle")
 
-response = ""
+response = {}
 progress = 0
 lock = threading.Lock()
 commands = []  # to store entered commands
@@ -114,7 +116,7 @@ def update_progress():
     global progress
     bar_length = 20  # length of the bar
     while progress < 100:
-        time.sleep(0.1)
+        time.sleep(1)
         with lock:
             progress += 4
             if progress > 100:
@@ -212,13 +214,14 @@ def home(face_frames, mood):
         input(center_text("Press Enter to return...", cols))
 
     if choice == "1":
+        user_text = input(">")
         # Start the progress thread
         progress_thread = threading.Thread(target=update_progress)
         progress_thread.daemon = True
         progress_thread.start()
 
         # Start the inference thread
-        inference_thread = threading.Thread(target=infer)
+        inference_thread = threading.Thread(target=QWEN_infer, args=(user_text, response))
         inference_thread.daemon = True
         inference_thread.start()
 
@@ -264,7 +267,7 @@ def home(face_frames, mood):
 
         # After completion, show AI response
         print('\n')
-        print(YELLOW + "PROMETHEUS: " + RESET + response)
+        print(YELLOW + "PROMETHEUS: " + RESET + response["response"])
         print()
         
         if commands:
