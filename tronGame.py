@@ -11,6 +11,7 @@ import time
 import platform
 import threading
 import select
+import random
 from enum import Enum
 from collections import deque
 
@@ -167,6 +168,7 @@ class TronGame:
         self.height = height
         self.grid = [[' ' for _ in range(width)] for _ in range(height)]
         self.state = GameState.MENU
+        self.difficulty = "medium" # default difficulty
         
         # Player setup
         self.player_pos = [height//2, width//4]
@@ -182,6 +184,9 @@ class TronGame:
         self.running = True
         self.game_speed = 0.35
         self.score = {"player": 0, "ai": 0}
+        self.crashed = False
+        self.crash_pos = None
+        self.crash_winner = None
         
         # Input system
         self.input_handler = InputHandler()
@@ -227,13 +232,16 @@ class TronGame:
 ║                    SYSTEM COMMANDS                       ║
 ╠══════════════════════════════════════════════════════════╣
 ║  {Colors.WHITE}[ENTER]{Colors.CYAN} - Initialize Combat Grid                        ║
+║  {Colors.WHITE}[1]{Colors.CYAN}     - Easy AI                                       ║
+║  {Colors.WHITE}[2]{Colors.CYAN}     - Medium AI                                     ║
+║  {Colors.WHITE}[3]{Colors.CYAN}     - Hard AI                                       ║
 ║  {Colors.WHITE}[Q]{Colors.CYAN}     - Quit to DOS                                   ║
 ║                                                          ║
 ║  {Colors.ORANGE}CONTROLS:{Colors.CYAN}                                               ║
 ║  {Colors.WHITE}WASD{Colors.CYAN}   - Navigate Light Cycle                           ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
-
+{Colors.WHITE}Difficulty{Colors.CYAN} - {self.difficulty}                                  
 {Colors.DIM}Status: Waiting for user input... (Press keys as shown above){Colors.RESET}
         """
         
@@ -283,30 +291,41 @@ class TronGame:
 
         
     def handle_input(self):
-        """Handle keyboard input"""
         char = self.input_handler.get_input()
         if not char:
             return
-            
-        # Handle special keys
-        if char in ['\r', '\n']:  # Enter
-            if self.state == GameState.MENU:
+
+        
+        if self.state == GameState.MENU:
+            if char in ['\r', '\n']:  # Enter
                 self.start_game()
+            elif char == '1':
+                self.difficulty = "easy"
+                self.draw_menu()
+            elif char == '2':
+                self.difficulty = "medium"
+                self.draw_menu()
+            elif char == '3':
+                self.difficulty = "hard"
+                self.draw_menu()
             elif self.state == GameState.GAME_OVER:
-                self.start_game()   #restart immediately 
-                
+                clear_screen()
+                self.start_game()
+
+        elif self.state == GameState.GAME_OVER:
+            if char in ['\r', '\n']:  # Enter in game over restarts game
+                self.start_game()
+            elif char.lower() == 'q':
+                clear_screen()
+                self.state = GameState.MENU
+        
         elif char.lower() == 'q':
             if self.state == GameState.MENU:
                 self.running = False
             elif self.state == GameState.GAME_OVER:
-                if char.lower() == 'q':
-                    clear_screen()
-                    self.state = GameState.MENU #return to menu when quit after game over
-                elif char == '\n':
-                    clear_screen()
-                    self.start_game #restart game when enter is pressed after game over
-                
-        # Game controls
+                clear_screen()
+                self.state = GameState.MENU
+
         elif self.state == GameState.PLAYING:
             char = char.lower()
             if char == 'w' and self.player_dir != Direction.DOWN:
@@ -351,8 +370,10 @@ class TronGame:
         new_col = self.player_pos[1] + dc
         
         # Check collision
-        if self.check_collision(new_row, new_col):
-            self.game_over("AI")
+        if self.check_collision(new_row, new_col) or [new_row, new_col] == self.ai_pos:
+            self.crashed = True
+            self.crash_pos = [new_row, new_col]
+            self.crash_winner = "AI"
             return
             
         self.player_pos = [new_row, new_col]
@@ -365,8 +386,18 @@ class TronGame:
             self.grid[row][col] = 'A'
             self.ai_trail.append([row, col])
             
-        # Smart AI movement
-        self.ai_dir = self.get_ai_direction()
+        # Choose ai direction based on selected difficulty
+        new_direction = None
+        if self.difficulty == "easy":
+            new_direction = self.get_ai_direction_easy()
+        elif self.difficulty == "hard":
+            new_direction = self.get_ai_direction_hard()
+        else:
+            new_direction = self.get_ai_direction()  # medium difficulty
+        
+        # CRITICAL: Only update direction if we got a valid one
+        if new_direction is not None:
+            self.ai_dir = new_direction
             
         # Calculate new position
         dr, dc = self.ai_dir.value
@@ -374,12 +405,30 @@ class TronGame:
         new_col = self.ai_pos[1] + dc
         
         # Check collision
-        if self.check_collision(new_row, new_col):
-            self.game_over("Player")
+        if self.check_collision(new_row, new_col) or [new_row, new_col] == self.player_pos:
+            self.crashed = True
+            self.crash_pos = [new_row, new_col]
+            self.crash_winner = "Player"  # AI crashed, player wins
             return
             
         self.ai_pos = [new_row, new_col]
-        
+    
+    def check_player_collision(self, next_player_pos, next_ai_pos):
+        # Check if both next positions are the same (player collision)
+        if next_player_pos == next_ai_pos:
+            return True
+        return False
+    
+    def get_ai_direction_easy(self):
+        directions = list(Direction)
+        random.shuffle(directions)
+        for direction in directions:
+            dr, dc = direction.value
+            nr, nc = self.ai_pos[0] + dr, self.ai_pos[1] + dc
+            if not self.check_collision(nr, nc):
+                return direction
+        return self.ai_dir
+    
     def get_ai_direction(self):
         """Calculate best AI direction"""
         current_dir = self.ai_dir
@@ -418,7 +467,172 @@ class TronGame:
             return possible_dirs[0][0]
         else:
             return current_dir
-            
+    
+    def bfs_path(self, start, goal):
+        """Find shortest path from start to goal avoiding collisions using BFS.
+       Returns list of positions from start to goal (including start), or [] if no path.
+        """
+        queue = deque([[start]])
+        visited = set([tuple(start)])
+
+        while queue:
+            path = queue.popleft()
+            current = path[-1]
+            if current == tuple(goal):
+                return path
+
+            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
+                nr, nc = current[0] + dr, current[1] + dc
+
+                if 0 <= nr < self.height and 0 <= nc < self.width:
+                    if not self.check_collision(nr, nc) and (nr, nc) not in visited:
+                        visited.add((nr, nc))
+                        queue.append(path + [(nr, nc)])
+
+        return []
+      
+    def get_ai_direction_hard(self):
+        px, py = self.player_pos
+        pdx, pdy = self.player_dir.value
+
+        steps_ahead = 3
+        predicted = None
+
+        while steps_ahead > 0:
+            pred_x = px + pdx * steps_ahead
+            pred_y = py + pdy * steps_ahead
+
+            # Check if predicted position is within bounds BEFORE using it
+            if (pred_x < 0 or pred_x >= self.height or 
+                pred_y < 0 or pred_y >= self.width or 
+                self.check_collision(pred_x, pred_y)):
+                steps_ahead -= 1
+                continue
+
+            # Find path from AI to predicted position
+            path = self.bfs_path(tuple(self.ai_pos), (pred_x, pred_y))
+
+            # Check path validity and length
+            if path is not None and len(path) >= 2:
+                next_pos = path[1]
+                dr = next_pos[0] - self.ai_pos[0]
+                dc = next_pos[1] - self.ai_pos[1]
+
+                # Find direction leading to next_pos
+                next_dir = None
+                for direction in Direction:
+                    if direction.value == (dr, dc):
+                        next_dir = direction
+                        break
+
+                # If no direction found, try shorter prediction
+                if next_dir is None:
+                    steps_ahead -= 1
+                    continue
+
+                next_r = self.ai_pos[0] + next_dir.value[0]
+                next_c = self.ai_pos[1] + next_dir.value[1]
+
+                # Check if next move is safe
+                if self.check_collision(next_r, next_c):
+                    steps_ahead -= 1
+                    continue
+
+                # Stronger lookahead: check reachable free space from next move
+                free_space = self.count_reachable_space((next_r, next_c), max_steps=10)
+                MIN_SAFE_SPACE = 7
+
+                if free_space >= MIN_SAFE_SPACE:
+                    predicted = (pred_x, pred_y)
+                    break
+                else:
+                    steps_ahead -= 1
+            else:
+                steps_ahead -= 1
+
+        # Fallback if no predicted safe position found
+        if predicted is None:
+            if (px >= 0 and px < self.height and py >= 0 and py < self.width and 
+                not self.check_collision(px, py)):
+                predicted = (px, py)
+            else:
+                predicted = self.find_nearest_safe(pos=self.player_pos) or tuple(self.ai_pos)
+
+        # Find path to final predicted position
+        path = self.bfs_path(tuple(self.ai_pos), predicted)
+
+        if path is not None and len(path) >= 2:
+            next_pos = path[1]
+            dr = next_pos[0] - self.ai_pos[0]
+            dc = next_pos[1] - self.ai_pos[1]
+
+            for direction in Direction:
+                if direction.value == (dr, dc):
+                    next_r = self.ai_pos[0] + direction.value[0]
+                    next_c = self.ai_pos[1] + direction.value[1]
+                    if not self.check_collision(next_r, next_c):
+                        return direction
+
+        # No valid path found — pick any safe random move
+        directions = list(Direction)
+        best_dir = None
+        max_space = -1
+
+        for d in directions:
+            nr = self.ai_pos[0] + d.value[0]
+            nc = self.ai_pos[1] + d.value[1]
+            if not self.check_collision(nr, nc):
+                space = self.count_reachable_space((nr, nc), max_steps=10)
+                if space > max_space:
+                    max_space = space
+                    best_dir = d
+
+        if best_dir:
+            return best_dir
+
+        # No safe moves — try to keep current direction if safe
+        next_r = self.ai_pos[0] + self.ai_dir.value[0]
+        next_c = self.ai_pos[1] + self.ai_dir.value[1]
+        if not self.check_collision(next_r, next_c):
+            return self.ai_dir
+
+        # CRITICAL: Always return a valid direction, never None
+        return self.ai_dir
+    
+    def find_nearest_safe(self, pos):
+        """Find nearest safe position around pos using BFS."""
+        visited = set()
+        queue = deque([pos])
+        while queue:
+            r, c = queue.popleft()
+            if not self.check_collision(r, c):
+                return (r, c)
+            for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+                nr, nc = r + dr, c + dc
+                if (nr, nc) not in visited and 0 <= nr < self.height and 0 <= nc < self.width:
+                    visited.add((nr, nc))
+                    queue.append((nr, nc))
+        return None
+    
+    def is_safe(self, x, y):
+        # Out of bounds?
+        if x < 0 or y < 0 or x >= self.width or y >= self.height:
+            return False
+        # Check collision with trails or walls
+        if (x, y) in self.trail or (x, y) in self.ai_trail:
+            return False
+        return True
+      
+    def _evaluate_move(self, row, col):
+        # Basic distance from player
+        dist = abs(row - self.player_pos[0]) + abs(col - self.player_pos[1])
+        # Check available space by counting free cells around
+        free_space = sum(
+            not self.check_collision(row + dr, col + dc)
+            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]
+        )
+        return dist + free_space * 2
+    
     def check_collision(self, row, col):
         """Check if position causes collision"""
         # Wall collision
@@ -430,7 +644,23 @@ class TronGame:
             return True
             
         return False
-        
+    
+    def count_reachable_space(self, start_pos, max_steps=10):
+        visited = set()
+        queue = deque([(start_pos, 0)])
+        count = 0
+        while queue:
+            (r, c), steps = queue.popleft()
+            if (r, c) in visited or steps > max_steps:
+                continue
+            visited.add((r, c))
+            count += 1
+            for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+                nr, nc = r + dr, c + dc
+                if not self.check_collision(nr, nc) and (nr, nc) not in visited:
+                    queue.append(((nr, nc), steps + 1))
+        return count
+       
     def game_over(self, winner):
         """Handle game over"""
         clear_screen()
@@ -471,32 +701,48 @@ class TronGame:
     def run(self):
         """Main game loop"""
         try:
-            # Start input handler
             self.input_handler.start_input_thread()
-            
+            self.crashed = False
+            self.crash_pos = None
+            self.crash_winner = None
+
             while self.running:
                 if self.state == GameState.MENU:
                     self.draw_menu()
-                    
+
                 elif self.state == GameState.PLAYING:
-                    self.move_player()
-                    if self.state == GameState.PLAYING:  # Check if still playing
+                    # Move both players first
+                    self.move_player() 
+                    if not self.crashed and self.state == GameState.PLAYING:
                         self.move_ai()
-                    if self.state == GameState.PLAYING:  # Check again
+
+                    # Check if either crashed during movement
+                    if self.crashed:
+                        # Mark crash on grid
+                        if self.crash_pos:
+                            r, c = self.crash_pos
+                            if 0 <= r < self.height and 0 <= c < self.width:
+                                self.grid[r][c] = 'X'  # Visible crash marker
+
+                        self.draw_game()  # Draw crash frame
+                        time.sleep(1.5)   # Pause so user can see the impact
+                        self.game_over(self.crash_winner)
+                        self.crashed = False
+                        continue
+
+                    if self.state == GameState.PLAYING:
                         self.draw_game()
-                        
+
                 elif self.state == GameState.GAME_OVER:
-                    pass  # Handled in game_over method
-                        
+                    pass  # handled in game_over()
+
                 self.handle_input()
                 time.sleep(self.game_speed)
-                
+
         except KeyboardInterrupt:
             pass
         finally:
-            # Cleanup
             self.input_handler.stop()
-            # Restore cursor and clear screen
             print('\033[?25h', end='')
             self.clear_screen()
             print(f"{Colors.CYAN}Thanks for playing TRON.EXE!{Colors.RESET}")

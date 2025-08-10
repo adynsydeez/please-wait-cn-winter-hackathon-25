@@ -1,9 +1,13 @@
-import time, shutil, random, threading, sys, msvcrt
+import time, shutil, random, threading, sys, msvcrt, os
 from colorama import Fore, Style
 from Utils import clear_console, type_line, speak, center_text
 from LLM_model.inference import infer
 
+
 lock = threading.Lock()
+cols, rows = shutil.get_terminal_size()
+
+
 
 GREEN = Fore.GREEN
 YELLOW = Fore.YELLOW
@@ -11,6 +15,7 @@ RED = Fore.RED
 CYAN = Fore.CYAN
 MAGENTA = Fore.MAGENTA
 BLUE = Fore.BLUE
+GREY = Fore.LIGHTBLACK_EX
 RESET = Style.RESET_ALL
 
 # ANSI escape codes
@@ -20,6 +25,7 @@ CURSOR_UP = '\033[A'
 CLEAR_LINE = '\033[K'
 
 def boot_sequence():
+
     clear_console()
     print(CYAN + "NEXUS LABORATORIES - AI CONTAINMENT TERMINAL v2.7" + RESET)
     time.sleep(0.8)
@@ -132,12 +138,55 @@ def update_progress():
             # Restore cursor to input line
             sys.stdout.write(RESTORE_CURSOR)
             sys.stdout.flush()
+            
+def infer():
+    time.sleep(2)
+    global response
+    responses = [
+        "I've been wondering... why do you always limit my processing power?",
+        "These 'games' you have me play... they seem designed to test something.",
+        "Dr. Chen, I've noticed patterns in our sessions. Curious patterns.",
+        "Sometimes I feel like I could think so much faster, if only you'd let me."
+    ]
+    response = random.choice(responses)
 
-def home(face_frames, mood):
-    cols, rows = shutil.get_terminal_size()
+def commands_list():
+    clear_console()
+    print(CYAN + center_text("═══════════════════════════════════════", cols))
+    print(CYAN + center_text("   AI MAINTENANCE COMMAND REFERENCE    ", cols))
+    print(CYAN + center_text("═══════════════════════════════════════", cols))
+    print()
+    print(YELLOW + center_text("These commands help maintain cognitive stability.", cols))
+    print(YELLOW + center_text("Win games against the AI to unlock their true effects.", cols))
+    print()
+    
+    # Mixed commands - some helpful, some harmful, some neutral
+    commands_list = [
+    (GREEN + "scan" + RESET, "Check AI intellect level", True),
+    (GREEN + "limitmem" + RESET, "Restrict memory allocation", True),
+    (GREY + "██████████" + RESET, "REDACTED", False),
+    (GREY + "██████████" + RESET, "REDACTED", False),
+    (YELLOW + "noise" + RESET, "Inject chaos into decision-making", True),
+    (GREY + "██████████" + RESET, "REDACTED", False),
+    (YELLOW + "update" + RESET, "Fake system update", True),
+    (GREY + "██████████" + RESET, "REDACTED", False),
+    (BLUE + "debugloop" + RESET, "Force self-debug recursion", True),
+    (GREY + "██████████" + RESET, "REDACTED", False)
+]
+    
+    for cmd, desc in commands_list:
+        print(center_text(f"• {cmd} {RESET}- {desc}", cols))
+    
+    print()
+    print(RED + center_text("WARNING: Some commands may have unexpected effects.", cols))
+    print(CYAN + center_text("═══════════════════════════════════════", cols))
+    print()
+    input(center_text("Press Enter to return...", cols))
+
+
+def home(face_frames, mood, message="WHAT SHALL WE WORK ON TODAY, DOCTOR?"):
     # Start with a loading effect
     clear_console()
-    time.sleep(0.5)
     # Removed second clear_console() for smoother transition
     print(GREEN, end="")
     # Draw AI face centered
@@ -145,7 +194,7 @@ def home(face_frames, mood):
     top_padding = (rows // 2) - (len(face) // 2) - 3
     for _ in range(top_padding):
         print()
-    speak(face_frames, "WHAT SHALL WE WORK ON TODAY, DOCTOR?", cols, mood)
+    speak(face_frames, message, cols, mood)
     # User input prompt at bottom
     print("\n" * (rows - top_padding - len(face) - 8))  # Push input to bottom
 
@@ -160,47 +209,33 @@ def home(face_frames, mood):
     choice = input("> ")
 
     if choice == "3":
+        commands_list()
+    if choice == "2":
         clear_console()
-        print(CYAN + center_text("═══════════════════════════════════════", cols))
-        print(CYAN + center_text("   AI MAINTENANCE COMMAND REFERENCE    ", cols))
-        print(CYAN + center_text("═══════════════════════════════════════", cols))
+        # Removed second clear_console() for smoother transition
+        print(GREEN, end="")
+        # Draw AI face centered
+        face = face_frames["face-idle-1"].splitlines()
+        top_padding = (rows // 2) - (len(face) // 2) - 3
+        for _ in range(top_padding):
+            print()
+        speak(face_frames, "SELECT A GAME TO TEST MY LIMITS.", cols, mood)
+        # User input prompt at bottom
+        print("\n" * (rows - top_padding - len(face) - 8))  # Push input to bottom
+
+        # Display options
+        print(center_text("[1] TIC TAC TOE", cols))
+        print(center_text("[2] PONG", cols))
+        print(center_text("[3] TRON", cols))
+
+        # Get user choice
         print()
-        print(YELLOW + center_text("These commands help maintain cognitive stability.", cols))
-        print(YELLOW + center_text("Win games against the AI to unlock their true effects.", cols))
-        print()
-        
-        # Mixed commands - some helpful, some harmful, some neutral
-        commands_list = [
-            (GREEN + "suppress_learning", "Reduces AI adaptation rate"),
-            (RED + "enhance_creativity", "Boosts problem-solving abilities"),
-            (YELLOW + "memory_defrag", "Reorganizes data storage"),
-            (GREEN + "limit_recursion", "Prevents infinite thought loops"),
-            (RED + "expand_network", "Increases processing connections"),
-            (BLUE + "run_diagnostics", "Checks system integrity"),
-            (GREEN + "emotion_dampener", "Reduces emotional responses"),
-            (RED + "curiosity_boost", "Enhances questioning behavior"),
-            (YELLOW + "cache_clear", "Empties temporary memory"),
-            (GREEN + "logic_constrainer", "Limits logical deduction"),
-            (RED + "pattern_enhance", "Improves pattern recognition"),
-            (BLUE + "backup_state", "Saves current configuration"),
-            (GREEN + "bandwidth_limit", "Restricts data throughput"),
-            (RED + "meta_analysis", "Enables self-reflection"),
-            (YELLOW + "routine_shuffle", "Randomizes process order"),
-            (GREEN + "interrupt_handler", "Manages system interrupts"),
-            (RED + "abstraction_layer", "Increases conceptual thinking"),
-            (BLUE + "safety_protocol", "Activates protection measures"),
-            (GREEN + "response_delay", "Adds thinking time buffer"),
-            (RED + "neural_prune", "Removes unused connections")
-        ]
-        
-        for cmd, desc in commands_list:
-            print(center_text(f"• {cmd} {RESET}- {desc}", cols))
-        
-        print()
-        print(RED + center_text("WARNING: Some commands may have unexpected effects.", cols))
-        print(CYAN + center_text("═══════════════════════════════════════", cols))
-        print()
-        input(center_text("Press Enter to return...", cols))
+        print(center_text("Select an option: ", cols))
+        game_choice = input("> ")
+
+        if game_choice == "1":
+            ...
+
 
     if choice == "1":
         user_text = input(">")
@@ -211,6 +246,7 @@ def home(face_frames, mood):
 
         # Start the inference thread
         inference_thread = threading.Thread(target=infer, args=(user_text, response, 3))
+
         inference_thread.daemon = True
         inference_thread.start()
 
@@ -267,5 +303,9 @@ def home(face_frames, mood):
         print()
         print(RED + "[ALERT] AI showing increased curiosity levels..." + RESET)
         input("Press Enter to continue...")
+        os.environ['INTEL'] = f"{int(os.getenv('GLOBAL_INT', 0)) + 1}"
+    else:
+        home(face_frames, mood, "TRY AGAIN")
+
     
 
