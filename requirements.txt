@@ -4,3 +4,4 @@ protobuf==6.31.1
 sentencepiece==0.2.0
 colorama==0.4.6
 accelerate==1.10.0
+openai==1.99.6

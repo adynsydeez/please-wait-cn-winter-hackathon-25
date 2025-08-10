@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. Set up the model
-Download file model.safetensors from https://huggingface.co/arnir0/Tiny-LLM/tree/main
+Download file model.safetensors from https://huggingface.co/arnir0/Tiny-LLM/tree/main for the tinyLLM model
 
 Place your tiny language model files in the following directory structure:
 ```
@@ -41,6 +41,20 @@ LLM_model/
     ├── tokenizer.json
     ├── tokenizer_config.json
     ├── special_tokens_map.json
+    └── tokenizer.model
+```
+
+Download file model.safetensors from https://huggingface.co/arnir0/Tiny-LLM/tree/main for the QWEN2.5-0.5B-Instruct model
+
+Place your tiny language model files in the following directory structure:
+```
+LLM_model/
+└── qwen2_5_0_5B_instruct_weight/
+    ├── config.json
+    ├── generation_config.json
+    ├── merges.txt
+    ├── tokenizer_config.json
+    ├── vocab.json
     └── tokenizer.model
 ```
 

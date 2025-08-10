@@ -1,7 +1,7 @@
 import time, shutil, random, threading, sys, msvcrt, os
 from colorama import Fore, Style
 from Utils import clear_console, type_line, speak, center_text
-from LLM_model.inference import QWEN_infer, tinyLLM_infer
+from LLM_model.inference import infer
 
 
 lock = threading.Lock()
@@ -397,7 +397,7 @@ def update_progress():
             sys.stdout.write(f'\rThinking: [{bar}] {progress}%')
             sys.stdout.write(RESTORE_CURSOR)
             sys.stdout.flush()
-
+            
 def infer():
     time.sleep(2)
     global response

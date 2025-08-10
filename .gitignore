@@ -2,6 +2,9 @@
 pytorch_model.bin
 model.safetensors
 
+# Config file
+config.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
