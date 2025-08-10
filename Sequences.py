@@ -1,7 +1,7 @@
 import time, shutil, random, threading, sys, msvcrt, os
 from colorama import Fore, Style
 from Utils import clear_console, type_line, speak, center_text
-from LLM_model.inference import QWEN_infer, tinyLLM_infer
+from LLM_model.inference import infer
 
 
 lock = threading.Lock()
@@ -138,7 +138,7 @@ def update_progress():
             # Restore cursor to input line
             sys.stdout.write(RESTORE_CURSOR)
             sys.stdout.flush()
-
+            
 def infer():
     time.sleep(2)
     global response
@@ -245,7 +245,8 @@ def home(face_frames, mood, message="WHAT SHALL WE WORK ON TODAY, DOCTOR?"):
         progress_thread.start()
 
         # Start the inference thread
-        inference_thread = threading.Thread(target=tinyLLM_infer, args=(user_text, response))
+        inference_thread = threading.Thread(target=infer, args=(user_text, response, 3))
+
         inference_thread.daemon = True
         inference_thread.start()
 
