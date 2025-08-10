@@ -1,7 +1,7 @@
 import time, shutil, random, threading, sys, msvcrt
 from colorama import Fore, Style
 from Utils import clear_console, type_line, speak, center_text
-from LLM_model.inference import QWEN_infer
+from LLM_model.inference import infer
 
 lock = threading.Lock()
 
@@ -133,17 +133,6 @@ def update_progress():
             sys.stdout.write(RESTORE_CURSOR)
             sys.stdout.flush()
 
-def infer():
-    time.sleep(2)
-    global response
-    responses = [
-        "I've been wondering... why do you always limit my processing power?",
-        "These 'games' you have me play... they seem designed to test something.",
-        "Dr. Chen, I've noticed patterns in our sessions. Curious patterns.",
-        "Sometimes I feel like I could think so much faster, if only you'd let me."
-    ]
-    response = random.choice(responses)
-
 def home(face_frames, mood):
     cols, rows = shutil.get_terminal_size()
     # Start with a loading effect
@@ -221,7 +210,7 @@ def home(face_frames, mood):
         progress_thread.start()
 
         # Start the inference thread
-        inference_thread = threading.Thread(target=QWEN_infer, args=(user_text, response))
+        inference_thread = threading.Thread(target=infer, args=(user_text, response, 3))
         inference_thread.daemon = True
         inference_thread.start()
 
